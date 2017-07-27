@@ -122,46 +122,13 @@ ErrorStatus TLV_UnPack(s8 *tag, s8 tmpData,
             tagBuf[tagBufCount++] = tmpData;
         }
         else
-        {
+        {    
             if (0 == memcmp(tag, tagBuf, tlvTagSize))
             {
                
             }
             tagBufCount = 0;
         }
-        break;
-
-    case T2_Status:
-        if (tag[1] == tmpData)
-        {
-            if (2 == tlvTagSize)
-                TLV_Status = L1_Status;
-            else
-                TLV_Status = T3_Status;
-        }
-        else
-            return ERROR;
-        break;
-
-    case T3_Status:
-        if (tag[2] == tmpData)
-        {
-            if (3 == tlvTagSize)
-                TLV_Status = L1_Status;
-            else
-                TLV_Status = T4_Status;
-        }
-        else
-            return ERROR;
-        break;
-    case T4_Status:
-        if (tag[3] == tmpData)
-        {
-            if (4 == tlvTagSize)
-                TLV_Status = L1_Status;
-        }
-        else
-            return ERROR;
         break;
 
 
