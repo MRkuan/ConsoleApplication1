@@ -76,9 +76,9 @@ ErrorStatus TLV_Pack(s8 *data, s32 *dataLen, t_TLVEntity TLVEntity)
 
 typedef enum
 {
-    T_Status,     /**<   T_Status */
-    L_Status,     /**<   L_Status */
-    V_Status,       /**< V_Status */
+    T_Status,              /**<   T_Status */
+    L_Status,              /**<   L_Status */
+    V_Status,              /**< V_Status */
 }
 t_TLV_Status;
 
@@ -100,23 +100,26 @@ t_TLV_Status;
 ErrorStatus TLV_UnPack(s8 *tag, s8 tmpData,
     u32 tlvTagSize, u32 tlvLenSize, void(*mytlvfunc)(t_TLVEntity*))
 {
-
-    static t_TLV_Status TLV_Status = T1_Status;
+    static t_TLV_Status TLV_Status = T_Status;
     static t_TLVEntity tlv;
-    static u8 tagBuf[4] = { 0 };
+
+    static s8 tagBuf[4] = { 0 };
     static u8 tagBufCount = 0;
-    static u8 lenBuf[4] = { 0 };
+    static s8 lenBuf[4] = { 0 };
     static u8 lenBufCount = 0;
-    
+    static s8  *val = NULL;
+    static u32 valCount = 0;
+  
     if (tlvTagSize > 4 || tlvLenSize > 4)
     {
         PR("tlvTagSize is more than 4 or tlvLenSize is more than 4");
         return ERROR;
     }
+
     switch (TLV_Status)
     {
 
-    case T1_Status:
+    case T_Status:
         if (tagBufCount<tlvTagSize)
         {
             tagBuf[tagBufCount++] = tmpData;
@@ -125,81 +128,48 @@ ErrorStatus TLV_UnPack(s8 *tag, s8 tmpData,
         {    
             if (0 == memcmp(tag, tagBuf, tlvTagSize))
             {
-               
+                TLV_Status = L_Status;
             }
             tagBufCount = 0;
         }
         break;
 
 
-    case L1_Status:
-        if (1 == tlvTagSize)
+    case L_Status:
+        if (lenBufCount < tlvLenSize)
         {
-            TLV_Status = V_Status;
-            tlv.len    = 
-            tlv.valLen = PcharToData(tmpData, tlvLenSize);
+            lenBuf[lenBufCount++]= tmpData;
+        }
+        else
+        {
+            tlv.valLen = PcharToData(lenBuf, tlvLenSize);
+            /****针对TLV L长度为0情况*****/
+            if (0 == tlv.valLen)
+            {
+                TLV_Status = T_Status;
+                mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
+                tlv.val = NULL;
+            }
+            else
+            {
+                TLV_Status = V_Status;
+                val = calloc(tlv.valLen, sizeof(s8));
+            } 
+            lenBufCount = 0;
         }
         break;
-
-    case L2_Status:
-
+    case V_Status:       
+        val[valCount++] = tmpData;
+        if (valCount >= tlv.valLen)
+        {
+            TLV_Status = T_Status;
+            mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
+        }
         break;
-
-    case L3_Status:
-
-        break;
-
-    case L4_Status:
-
-        break;
-
-    case V_Status:
-
-        break;
-
-
 
     default:
         break;
     }
-
-
-
-
-
-    *offset = 0;
-    if (dataLen <= 0)
-    {
-        return;
-    }
-    //while(*offset<dataLen)
-    {
-
-        if (0 == memcmp(tag, tlv.tag, tlvTagSize))
-        {
-            tlv.tagSize = tlvTagSize;
-            tlv.lenSize = tlvLenSize;
-            mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
-        }
-
-        tlv.tag = data + *offset;
-        tlv.len = data + *offset + tlvTagSize;
-        tlv.valLen = PcharToData(tlv.len, tlvLenSize);
-
-        /****针对TLV L长度为0情况*****/
-        if (0 == tlv.valLen)
-        {
-            tlv.val = NULL;
-        }
-        else
-        {
-            tlv.val = data + *offset + tlvTagSize + tlvLenSize;
-        }
-        *offset += tlvTagSize + tlvLenSize + tlv.valLen;
-
-
-    }
-    return;
 }
 
 
@@ -269,6 +239,13 @@ void TLV_Unit(void)
 
 
     TLV_Pack(tmpPackBuf, &tmpPackBufLen, tmpTLVEntity2);
+
+
+    for
+
+
+
+
 
     TLV_UnPack(tmpPackBuf, tmpPackBufLen, &tmpPackBufLenOffset, "\x07\x05", 2, 1, mytlvfuncUnPack);
     TLV_UnPack(tmpPackBuf, tmpPackBufLen, &tmpPackBufLenOffset, "\x02\x03", 2, 1, mytlvfuncUnPack);

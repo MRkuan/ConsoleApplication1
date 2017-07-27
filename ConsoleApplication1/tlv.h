@@ -105,7 +105,6 @@ extern "C"
 {
 #endif
 
-
     /** describe TLV information */
     typedef struct
     {
