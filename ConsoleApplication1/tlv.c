@@ -87,29 +87,29 @@ t_TLV_Status;
 /**
  * \brief _TLV_Unpack TLV数据解包
  *
- * \param [in]data 数据指针
- * \param [in]dataLen 数据长度
- * \param offset偏移长度
- * \param tag 寻找标识
+ * \param TagCmp TAG标志比较回调
+ * \param tmpData 待解析的数据
  * \param tlvTagSize tlvTag大小
  * \param tlvLenSize tlvLen大小
  * \param mytlvfunc 回调处理
  *
  * \return NONE
  */
-ErrorStatus TLV_UnPack(s8 *tag, s8 tmpData,
+ErrorStatus TLV_UnPack(ErrorStatus( *TagCmp)(s8 *tagBuf,u8 tagBufCount),s8 tmpData,
     u32 tlvTagSize, u32 tlvLenSize, void(*mytlvfunc)(t_TLVEntity*))
 {
+    ErrorStatus tmpStatus = SUCCESS;
+
     static t_TLV_Status TLV_Status = T_Status;
     static t_TLVEntity tlv;
 
-    static s8 tagBuf[4] = { 0 };
+    static s8 tagBuf[10] = { 0 };
     static u8 tagBufCount = 0;
     static s8 lenBuf[4] = { 0 };
     static u8 lenBufCount = 0;
     static s8  *val = NULL;
     static u32 valCount = 0;
-  
+
     if (tlvTagSize > 4 || tlvLenSize > 4)
     {
         PR("tlvTagSize is more than 4 or tlvLenSize is more than 4");
@@ -120,72 +120,145 @@ ErrorStatus TLV_UnPack(s8 *tag, s8 tmpData,
     {
 
     case T_Status:
-        if (tagBufCount<tlvTagSize)
+        tagBuf[tagBufCount++] = tmpData;
+        if (tagBufCount >= tlvTagSize)
         {
-            tagBuf[tagBufCount++] = tmpData;
-        }
-        else
-        {    
-            if (0 == memcmp(tag, tagBuf, tlvTagSize))
+            if (SUCCESS == TagCmp(tagBuf, tlvTagSize))
             {
                 TLV_Status = L_Status;
+                tlv.tagSize = tlvTagSize;
+                tlv.tag = tagBuf;
+                tagBufCount = 0;
             }
-            tagBufCount = 0;
+            else
+            {
+                /* 向前移动一格 */
+                memcpy(tagBuf, tagBuf + 1, --tagBufCount);
+            }
         }
         break;
 
 
     case L_Status:
-        if (lenBufCount < tlvLenSize)
+        lenBuf[lenBufCount++] = tmpData;
+        if (lenBufCount >= tlvLenSize)
         {
-            lenBuf[lenBufCount++]= tmpData;
-        }
-        else
-        {
+            tlv.len = lenBuf;
             tlv.valLen = PcharToData(lenBuf, tlvLenSize);
+            tlv.lenSize = tlvLenSize;
+
+
             /****针对TLV L长度为0情况*****/
             if (0 == tlv.valLen)
             {
                 TLV_Status = T_Status;
-                mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
                 tlv.val = NULL;
+                mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
+            
             }
             else
             {
                 TLV_Status = V_Status;
                 val = calloc(tlv.valLen, sizeof(s8));
-            } 
+            }
             lenBufCount = 0;
         }
         break;
-    case V_Status:       
+    case V_Status:
         val[valCount++] = tmpData;
         if (valCount >= tlv.valLen)
         {
+            tlv.val = val;
             TLV_Status = T_Status;
+            valCount = 0;
             mytlvfunc(&tlv);/****回调处理每次解析的TLV值*****/
+            free(val);
         }
         break;
 
     default:
         break;
     }
+    return tmpStatus;
+
 }
 
 
+s8 tagArr[][2] =
+{
+    { "\x07\x05" },
+    { "\x02\x03" },
+};
+u8 tagArrLen = ARR_SIZE(tagArr);
 
 /**
-  * \brief mytlvfuncUnPack TLV单元检测用到临时解析
-  *
-  * \param  None
-  *
-  * \return None
-  */
+* \brief TagCmp TAG比较
+*
+* \param  None
+*
+* \return None
+*/
+static ErrorStatus TagCmp (s8 *tagBuf, u8 tagBufCount)
+{
+    u32 i = 0;
+    ErrorStatus tmpStatus = ERROR;
+    for (i = 0; i < tagArrLen; i++)
+    {
+        if (0 == memcmp(tagArr[i], tagBuf, tagBufCount))
+        {
+            tmpStatus = SUCCESS;
+            break;
+        }
+    }
+    return tmpStatus;
+}
+
+
+s8 tagArrUnPack[][2] =
+{
+    { "\x02\x00" },
+    { "\x01\x00" },
+    { "\x03\x01" },
+};
+u8 tagArrUnPackLen = ARR_SIZE(tagArrUnPack);
+
+
+/**
+* \brief TagCmpUnPack TAG比较
+*
+* \param  None
+*
+* \return None
+*/
+static ErrorStatus TagCmpUnPack(s8 *tagBuf, u8 tagBufCount)
+{
+    u32 i = 0;
+    ErrorStatus tmpStatus = ERROR;
+    for (i = 0; i < tagArrUnPackLen; i++)
+    {
+        if (0 == memcmp(tagArrUnPack[i], tagBuf, tagBufCount))
+        {
+            tmpStatus = SUCCESS;
+            break;
+        }
+    }
+    return tmpStatus;
+}
+
+
+/**
+* \brief mytlvfuncUnPack TLV单元检测用到临时解析
+*
+* \param  None
+*
+* \return None
+*/
 static void  mytlvfuncUnPack(t_TLVEntity *tlv)
 {
 
 
 }
+
 
 
 /**
@@ -204,10 +277,11 @@ void TLV_Unit(void)
     u32 tmpPackBufLenOffset = 0;
 
 
-    u8 tmpUnPackBuf[100] = { 0x00,0x00,0x00,
-                           0x01,0x00, 0x00,
-                           0x02,0x00,0x01,0x08,
-                           0x03,0x01,0x02,0x03,0x04
+    u8 tmpUnPackBuf[100] = {
+                           0x00,0x01,0x00,0x00,
+                           0x03,0x02,0x00,0x01,0x08,0x05,
+                           0x03,0x01,0x02,0x03,0x04,0x06,
+                           0x02,0x00,0x01,0x08,0x09
     };
     u32 tmpUnPackBufLen = ARR_SIZE(tmpUnPackBuf);
     u32 tmpUnPackBufLenOffset = 0;
@@ -217,9 +291,10 @@ void TLV_Unit(void)
         {"\x02\x03"},//tag
         {"\x08"},    //len
         {"\x01\x03\x04\x01\x09\x04\x01\x03" },//val
-        0,//valLen
         2,//tagSize
         1,//lenSize
+        0,//valLen
+
     };
 
     t_TLVEntity tmpTLVEntity2 =
@@ -227,34 +302,30 @@ void TLV_Unit(void)
         {"\x07\x05"},//tag
         {"\x04"},    //len
         {"\x01\x03\x04\x01" },//val
-        0,//valLen
         2,//tagSize
         1,//lenSize
+        0,//valLen
     };
+
+
+
 
     /************测试组包和解包**************/
     TLV_Pack(tmpPackBuf, &tmpPackBufLen, tmpTLVEntity1);
-
     TLV_Pack(tmpPackBuf, &tmpPackBufLen, tmpTLVEntity2);
-
-
     TLV_Pack(tmpPackBuf, &tmpPackBufLen, tmpTLVEntity2);
+    TLV_Pack(tmpPackBuf, &tmpPackBufLen, tmpTLVEntity1);
 
-
-    for
-
-
-
-
-
-    TLV_UnPack(tmpPackBuf, tmpPackBufLen, &tmpPackBufLenOffset, "\x07\x05", 2, 1, mytlvfuncUnPack);
-    TLV_UnPack(tmpPackBuf, tmpPackBufLen, &tmpPackBufLenOffset, "\x02\x03", 2, 1, mytlvfuncUnPack);
-
+    for (i = 0; i < tmpPackBufLen; i++)
+    {
+        TLV_UnPack(TagCmp, tmpPackBuf[i], 2, 1, mytlvfuncUnPack);
+    }
 
     /************单独测试解包**************/
-    TLV_UnPack(tmpUnPackBuf + tmpUnPackBufLenOffset, tmpUnPackBufLen, &tmpUnPackBufLenOffset, "\x03\x01", 2, 1, mytlvfuncUnPack);
-    TLV_UnPack(tmpUnPackBuf + tmpUnPackBufLenOffset, tmpUnPackBufLen, &tmpUnPackBufLenOffset, "\x01\x00", 2, 1, mytlvfuncUnPack);
-    TLV_UnPack(tmpUnPackBuf + tmpUnPackBufLenOffset, tmpUnPackBufLen, &tmpUnPackBufLenOffset, "\x00\x00", 2, 1, mytlvfuncUnPack);
+    for (i = 0; i < tmpUnPackBufLen; i++)
+    {
+        TLV_UnPack(TagCmpUnPack, tmpUnPackBuf[i], 2, 1, mytlvfuncUnPack);
+    }
 }
 
 //*****************************************************************************

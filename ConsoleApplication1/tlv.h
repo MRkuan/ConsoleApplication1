@@ -10,7 +10,6 @@
 // 2017/07/26   	kuan		将TLV_Pack tag大小和Len大小封装在TLV当中
 //*****************************************************************************
 
-
 #ifndef __TLV_H__
 #define __TLV_H__
 
@@ -22,7 +21,6 @@ typedef signed char int8_t;
 typedef signed short int16_t;
 typedef signed int int32_t;
 
-
 #ifdef __cplusplus
 #define    __I    volatile             /*!< Defines 'read only' permissions                 */
 #else
@@ -30,7 +28,6 @@ typedef signed int int32_t;
 #endif
 #define    __O    volatile             /*!< Defines 'write only' permissions                */
 #define   __IO    volatile             /*!< Defines 'read / write' permissions              */
-
 
 /*!< STM32F10x Standard Peripheral Library old types (maintained for legacy purpose) */
 
@@ -66,8 +63,6 @@ typedef __I uint32_t vuc32;  /*!< Read Only */
 typedef __I uint16_t vuc16;  /*!< Read Only */
 typedef __I uint8_t vuc8;   /*!< Read Only */
 
-
-
                             /** 一些状态枚举 */
 typedef enum { RESET = 0, SET = !RESET } FlagStatus, ITStatus;
 #define IS_STATUS_STATE(STATE) (((STATE) == RESET) || ((STATE) == SET))
@@ -75,7 +70,6 @@ typedef enum { DISABLE = 0, ENABLE = !DISABLE } FunctionalState;
 #define IS_FUNCTIONAL_STATE(STATE) (((STATE) == DISABLE) || ((STATE) == ENABLE))
 typedef enum { ERROR = 0, SUCCESS = !ERROR } ErrorStatus;
 #define IS_ERROR_STATE(STATE) (((STATE) == ERROR) || ((STATE) == SUCCESS))
-
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -90,9 +84,6 @@ typedef enum { ERROR = 0, SUCCESS = !ERROR } ErrorStatus;
 //! @{
 //
 //*****************************************************************************
-
-
-
 
 //*****************************************************************************
 //
@@ -116,21 +107,20 @@ extern "C"
         u32 valLen;     /**< 数据长度                  */
     } t_TLVEntity;
 
-
-//*****************************************************************************
-//
-// Prototypes for the APIs.
-//
-//*****************************************************************************
-    ErrorStatus TLV_Pack(s8 *data, s32 *dataLen, t_TLVEntity TLVEntity);
-    void TLV_UnPack(s8 *data, s32 dataLen, s32 *offset, s8 *tag,
-        u32 tlvTagSize, u32 tlvLenSize, void(*mytlvfunc)(t_TLVEntity*));
+    //*****************************************************************************
+    //
+    // Prototypes for the APIs.
+    //
+    //*****************************************************************************
+        //ErrorStatus TLV_Pack(s8 *data, s32 *dataLen, t_TLVEntity TLVEntity);
+        //void TLV_UnPack(s8 *data, s32 dataLen, s32 *offset, s8 *tag,
+        //    u32 tlvTagSize, u32 tlvLenSize, void(*mytlvfunc)(t_TLVEntity*));
     void TLV_Unit(void);
-//*****************************************************************************
-//
-// Mark the end of the C bindings section for C++ compilers.
-//
-//*****************************************************************************
+    //*****************************************************************************
+    //
+    // Mark the end of the C bindings section for C++ compilers.
+    //
+    //*****************************************************************************
 #ifdef __cplusplus
 }
 #endif
